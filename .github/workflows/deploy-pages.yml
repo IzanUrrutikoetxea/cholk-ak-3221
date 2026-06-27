@@ -29,9 +29,11 @@ jobs:
           dotnet publish cholk-ak-3221/cholk-ak-3221.csproj \
             -c Release -o publish
 
-      - name: Fix base href for GitHub Pages
+      - name: Fix base href and styles path for GitHub Pages
         run: |
           sed -i 's|<base href="/" />|<base href="/cholk-ak-3221/" />|g' \
+            publish/wwwroot/index.html
+          sed -i 's|href="cholk-ak-3221.styles.css"|href="/cholk-ak-3221/cholk-ak-3221.styles.css"|g' \
             publish/wwwroot/index.html
 
       - name: SPA routing fix (404.html)
