@@ -31,16 +31,16 @@ else
         _initialized = true;
 
         if (!Auth.IsAuthenticated && !IsAuthPage())
-            Nav.NavigateTo("/login");
+            Nav.NavigateTo("login");
     }
 
     private void OnAuthChange()
     {
         StateHasChanged();
         if (!Auth.IsAuthenticated)
-            Nav.NavigateTo("/login");
+            Nav.NavigateTo("login");
         else if (IsAuthPage())
-            Nav.NavigateTo("/");
+            Nav.NavigateTo("");
     }
 
     private bool IsAuthPage() =>
