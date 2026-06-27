@@ -14,7 +14,7 @@
             <div class="page-subtitle">@DateTime.Today.ToString("dddd d 'de' MMMM, yyyy", new System.Globalization.CultureInfo("es-ES"))</div>
         </div>
         <div style="display:flex; align-items:center; gap:14px;">
-            <SegmentedControl Items="Periods" @bind-Selected="selectedPeriod" />
+            <SegmentedControl Items="Periods" Selected="@selectedPeriod" SelectedChanged="OnPeriodChanged" />
             <button class="btn-primary" @onclick='() => Nav.NavigateTo("/trades")'>
                 <span class="btn-plus">+</span> Nuevo trade
             </button>
@@ -35,7 +35,7 @@
                 <div style="font-size:14px; color:var(--green); font-family:var(--font-mono);">▲ 2,4%</div>
             </div>
             <div style="font-size:12px; color:var(--text-ghost); margin-top:6px;">
-                +@MonthPnl.ToString("N0") € este mes
+                @(PeriodPnl >= 0 ? "+" : "")@PeriodPnl.ToString("N0") € @PeriodSublabel
             </div>
             <EquityCurve Values="@equityCurve" Width="560" Height="74" GradientId="resumen_eq" />
         </div>
@@ -43,12 +43,14 @@
         <!-- Right column: P&L + winrate + trades -->
         <div style="flex:1; display:flex; flex-direction:column; gap:18px;">
             <div class="card" style="flex:1;">
-                <div class="stat-label">P&amp;L DEL MES</div>
-                <div class="money" style="font-family:var(--font-mono); font-size:28px; color:var(--green); margin-top:10px;">
-                    +@MonthPnl.ToString("N0") €
+                <div class="stat-label">P&amp;L @PeriodLabel</div>
+                <div class="money" style="font-family:var(--font-mono); font-size:28px;
+                     color:@(PeriodPnl >= 0 ? "var(--green)" : "var(--red)"); margin-top:10px;">
+                    @(PeriodPnl >= 0 ? "+" : "")@PeriodPnl.ToString("N0") €
                 </div>
-                <div style="font-size:12px; color:var(--green); margin-top:3px; font-family:var(--font-mono);">
-                    +@MonthPnlPct.ToString("F1")%
+                <div style="font-size:12px; color:@(PeriodPnl >= 0 ? "var(--green)" : "var(--red)");
+                     margin-top:3px; font-family:var(--font-mono);">
+                    @(PeriodPnlPct >= 0 ? "+" : "")@PeriodPnlPct.ToString("F1")%
                 </div>
             </div>
             <div style="flex:1; display:flex; gap:18px;">
@@ -61,7 +63,7 @@
                 <div class="card" style="flex:1;">
                     <div class="stat-label">TRADES</div>
                     <div class="money" style="font-family:var(--font-mono); font-size:28px; margin-top:10px;">
-                        @trades.Count(t => t.Status == TradeStatus.Closed)
+                        @filteredTrades.Count(t => t.Status == TradeStatus.Closed)
                     </div>
                 </div>
             </div>
@@ -140,7 +142,7 @@
                 <button class="action-link" @onclick='() => Nav.NavigateTo("/trades")'>Ver registro</button>
             </div>
             <div style="display:flex; flex-direction:column;">
-                @foreach (var t in trades.Where(t => t.Status == TradeStatus.Closed)
+                @foreach (var t in filteredTrades.Where(t => t.Status == TradeStatus.Closed)
                                          .OrderByDescending(t => t.ClosedAt).Take(5))
                 {
                     <div class="table-row" style="gap:12px;">
@@ -164,17 +166,38 @@
 
 @code {
     private List<Account> accounts = new();
-    private List<Trade> trades = new();
+    private List<Trade> allTrades = new();
+    private List<Trade> filteredTrades = new();
     private List<decimal> equityCurve = new();
     private List<decimal> tradingEquity = new();
 
     private static readonly List<string> Periods = ["1S", "1M", "1A", "Máx"];
     private string selectedPeriod = "1M";
 
+    // Patrimonio is always current (not period-filtered)
     private decimal TotalPatrimonio => accounts.Sum(a => a.Balance);
-    private decimal MonthPnl => accounts.Sum(a => a.MonthPnl);
-    private decimal MonthPnlPct => TotalPatrimonio == 0 ? 0 : MonthPnl / (TotalPatrimonio - MonthPnl) * 100;
-    private double WinRate => TradeAnalytics.WinRate(trades);
+
+    // Period-filtered stats
+    private decimal PeriodPnl => filteredTrades.Where(t => t.Status == TradeStatus.Closed).Sum(t => t.Pnl);
+    private decimal PeriodPnlPct => TotalPatrimonio == 0 ? 0
+        : PeriodPnl / Math.Max(TotalPatrimonio - PeriodPnl, 1) * 100;
+    private double WinRate => TradeAnalytics.WinRate(filteredTrades);
+
+    private string PeriodLabel => selectedPeriod switch
+    {
+        "1S" => "DE LA SEMANA",
+        "1M" => "DEL MES",
+        "1A" => "DEL AÑO",
+        _    => "TOTAL"
+    };
+
+    private string PeriodSublabel => selectedPeriod switch
+    {
+        "1S" => "esta semana",
+        "1M" => "este mes",
+        "1A" => "este año",
+        _    => "histórico"
+    };
 
     private List<(Account acc, double pct, string color)> Distribution
     {
@@ -191,16 +214,10 @@
     protected override async Task OnInitializedAsync()
     {
         accounts = await Store.GetAccountsAsync();
-        trades = await Store.GetTradesAsync();
+        allTrades = await Store.GetTradesAsync();
+        ApplyPeriod();
 
-        var closedTrades = trades.Where(t => t.Status == TradeStatus.Closed)
-                                 .OrderBy(t => t.ClosedAt).ToList();
-
-        // Equity curve from first closed trade
-        var startCapital = TotalPatrimonio - closedTrades.Sum(t => t.Pnl);
-        equityCurve = TradeAnalytics.EquityCurve(closedTrades, startCapital);
-
-        // Trading accounts equity (sum of their histories)
+        // Trading accounts equity (sum of their histories) — static, not period-filtered
         var tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
         if (tradingAccounts.Any())
         {
@@ -210,5 +227,31 @@
                     i < a.EquityHistory.Count ? a.EquityHistory[i] : a.Balance))
                 .ToList();
         }
+    }
+
+    private void OnPeriodChanged(string period)
+    {
+        selectedPeriod = period;
+        ApplyPeriod();
+    }
+
+    private void ApplyPeriod()
+    {
+        var cutoff = selectedPeriod switch
+        {
+            "1S" => DateTime.Today.AddDays(-7),
+            "1M" => DateTime.Today.AddMonths(-1),
+            "1A" => DateTime.Today.AddYears(-1),
+            _    => DateTime.MinValue
+        };
+
+        filteredTrades = allTrades
+            .Where(t => t.OpenedAt >= cutoff)
+            .OrderBy(t => t.OpenedAt)
+            .ToList();
+
+        var closed = filteredTrades.Where(t => t.Status == TradeStatus.Closed).ToList();
+        var startCapital = TotalPatrimonio - closed.Sum(t => t.Pnl);
+        equityCurve = TradeAnalytics.EquityCurve(closed, startCapital);
     }
 }

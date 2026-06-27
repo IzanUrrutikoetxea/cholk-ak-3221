@@ -1,6 +1,7 @@
 @inject NavigationManager Nav
 @inject AppStateService AppState
 @inject IJSRuntime JS
+@implements IDisposable
 
 <div style="width:@(collapsed ? "64px" : "248px"); flex:none; background:var(--sidebar-bg);
             border-right:1px solid var(--border-dim); display:flex; flex-direction:column;
@@ -140,8 +141,6 @@
             "<polyline points='1,12 5,7 9,9 15,2' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'/>"),
         new("Analítica", "/analitica",
             "<rect x='1' y='9' width='3' height='6' rx='1' fill='currentColor'/><rect x='6.5' y='5' width='3' height='10' rx='1' fill='currentColor'/><rect x='12' y='1' width='3' height='14' rx='1' fill='currentColor'/>"),
-        new("Estrategias", "/estrategias",
-            "<circle cx='8' cy='8' r='6.3' fill='none' stroke='currentColor' stroke-width='1.4'/><circle cx='8' cy='8' r='1.6' fill='currentColor'/>"),
     ];
 
     private static readonly List<(string Name, string Color)> Accents =
@@ -167,4 +166,13 @@
         AppState.SetAccent(color);
         await JS.InvokeVoidAsync("setAccent", color);
     }
+
+    protected override void OnInitialized()
+        => Nav.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => StateHasChanged();
+
+    public void Dispose()
+        => Nav.LocationChanged -= OnLocationChanged;
 }
