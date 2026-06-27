@@ -1,8 +1,50 @@
 @inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Nav
+@implements IDisposable
 
-<div class="app-shell">
-    <Sidebar />
-    <main class="app-main">
-        @Body
-    </main>
-</div>
+@if (!_initialized)
+{
+    <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg);">
+        <div style="color:var(--text-faint); font-family:var(--font-mono); font-size:13px;">cargando…</div>
+    </div>
+}
+else if (!Auth.IsAuthenticated)
+{
+    @Body
+}
+else
+{
+    <div class="app-shell">
+        <Sidebar />
+        <main class="app-main">@Body</main>
+    </div>
+}
+
+@code {
+    private bool _initialized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Auth.OnChange += OnAuthChange;
+        await Auth.InitializeAsync();
+        _initialized = true;
+
+        if (!Auth.IsAuthenticated && !IsAuthPage())
+            Nav.NavigateTo("/login");
+    }
+
+    private void OnAuthChange()
+    {
+        StateHasChanged();
+        if (!Auth.IsAuthenticated)
+            Nav.NavigateTo("/login");
+        else if (IsAuthPage())
+            Nav.NavigateTo("/");
+    }
+
+    private bool IsAuthPage() =>
+        Nav.Uri.Contains("/login") || Nav.Uri.Contains("/register");
+
+    public void Dispose() => Auth.OnChange -= OnAuthChange;
+}

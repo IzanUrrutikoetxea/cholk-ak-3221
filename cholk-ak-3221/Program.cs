@@ -8,8 +8,14 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// ── API HttpClient ────────────────────────────────────────────────────────────
+var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7100";
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBase) });
+
+// ── Core services ─────────────────────────────────────────────────────────────
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddSingleton<AppStateService>();
-builder.Services.AddScoped<DataStore>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IDataStore, ApiDataStore>();
 
 await builder.Build().RunAsync();

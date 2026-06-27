@@ -3,7 +3,7 @@ using cholk_ak_3221.Models;
 
 namespace cholk_ak_3221.Services;
 
-public class DataStore(ILocalStorageService storage)
+public class DataStore(ILocalStorageService storage) : IDataStore
 {
     private const string AccountsKey = "cholk_accounts";
     private const string TradesKey = "cholk_trades";
@@ -199,4 +199,20 @@ public class DataStore(ILocalStorageService storage)
                 OpenedAt = base_date.AddDays(23), Status = TradeStatus.Open },
         ];
     }
+
+    private static List<Strategy> SeedStrategies() =>
+    [
+        new() { Name = "Breakout London", Description = "Roturas de rango en apertura Londres",
+            Status = StrategyStatus.Profitable, TotalPnl = 1150, WinRate = 0.65, ProfitFactor = 2.1,
+            TradeCount = 20, EquityHistory = [1000, 1080, 1150, 1100, 1200, 1180, 1220, 1150] },
+        new() { Name = "Trend H4", Description = "Seguimiento de tendencia en timeframe H4",
+            Status = StrategyStatus.Profitable, TotalPnl = 1475, WinRate = 0.70, ProfitFactor = 2.4,
+            TradeCount = 17, EquityHistory = [1000, 1100, 1200, 1180, 1300, 1350, 1420, 1475] },
+        new() { Name = "Reversal NY", Description = "Reversiones en apertura Nueva York",
+            Status = StrategyStatus.UnderReview, TotalPnl = -300, WinRate = 0.40, ProfitFactor = 0.8,
+            TradeCount = 10, EquityHistory = [1000, 950, 900, 920, 880, 860, 820, 700] },
+        new() { Name = "Pullback Asia", Description = "Pullbacks en sesión Asia",
+            Status = StrategyStatus.Profitable, TotalPnl = 500, WinRate = 0.60, ProfitFactor = 1.8,
+            TradeCount = 8, EquityHistory = [1000, 1050, 1030, 1080, 1060, 1100, 1090, 1120] },
+    ];
 }

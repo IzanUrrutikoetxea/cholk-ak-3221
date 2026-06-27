@@ -1,0 +1,70 @@
+@page "/login"
+@inject AuthService Auth
+@inject NavigationManager Nav
+@layout MinimalLayout
+
+<div style="min-height:100vh; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;">
+    <div style="width:100%; max-width:360px;">
+
+        <!-- Logo -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:48px; justify-content:center;">
+            <div style="width:32px; height:32px; border-radius:9px; background:var(--accent);
+                        display:flex; align-items:center; justify-content:center;">
+                <div style="width:11px; height:11px; background:#0a0a0c; transform:rotate(45deg);"></div>
+            </div>
+            <span style="font-size:18px; color:var(--text-primary); font-weight:600; letter-spacing:0.01em;">Patrimonio</span>
+        </div>
+
+        <div class="card" style="padding:32px;">
+            <div style="font-size:20px; color:var(--text-primary); font-weight:600; margin-bottom:6px;">Iniciar sesión</div>
+            <div style="font-size:13px; color:var(--text-faint); margin-bottom:28px;">Accede a tu diario de trading</div>
+
+            @if (_error != null)
+            {
+                <div style="background:#2a1515; border:1px solid #5a2222; border-radius:8px; padding:12px 14px;
+                            font-size:13px; color:var(--red); margin-bottom:20px;">@_error</div>
+            }
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; color:var(--text-faint); margin-bottom:6px; font-family:var(--font-mono);">EMAIL</label>
+                <input @bind="_email" @onkeydown="OnKeyDown" type="email" class="form-control" placeholder="tu@email.com" />
+            </div>
+
+            <div style="margin-bottom:28px;">
+                <label style="display:block; font-size:12px; color:var(--text-faint); margin-bottom:6px; font-family:var(--font-mono);">CONTRASEÑA</label>
+                <input @bind="_password" @onkeydown="OnKeyDown" type="password" class="form-control" placeholder="••••••••" />
+            </div>
+
+            <button @onclick="LoginAsync" class="btn-primary" style="width:100%;" disabled="@_loading">
+                @if (_loading) { <span>Entrando…</span> } else { <span>Entrar</span> }
+            </button>
+
+            <div style="text-align:center; margin-top:20px; font-size:13px; color:var(--text-faint);">
+                ¿Sin cuenta?
+                <span @onclick='() => Nav.NavigateTo("/register")'
+                      style="color:var(--accent); cursor:pointer; margin-left:4px;">Regístrate</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _email = "";
+    private string _password = "";
+    private string? _error;
+    private bool _loading;
+
+    private async Task LoginAsync()
+    {
+        _error = null;
+        _loading = true;
+        var ok = await Auth.LoginAsync(_email, _password);
+        _loading = false;
+        if (!ok) _error = "Email o contraseña incorrectos.";
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoginAsync();
+    }
+}

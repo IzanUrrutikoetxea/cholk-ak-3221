@@ -1,5 +1,6 @@
 @inject NavigationManager Nav
 @inject AppStateService AppState
+@inject AuthService Auth
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -91,10 +92,26 @@
                         display:flex; align-items:center; gap:11px; padding-left:6px;">
                 <div style="width:32px; height:32px; border-radius:50%;
                             background:linear-gradient(135deg,#3a3147,#211c2c);
-                            border:1px solid #2a2435; flex:none;"></div>
-                <div>
-                    <div style="font-size:13px; color:var(--text-secondary);">Mi cuenta</div>
-                    <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono);">trader</div>
+                            border:1px solid #2a2435; flex:none; display:flex; align-items:center;
+                            justify-content:center; font-size:13px; color:var(--text-secondary); font-weight:600;">
+                    @(Auth.CurrentUser?.DisplayName.Length > 0 ? Auth.CurrentUser.DisplayName[0].ToString().ToUpper() : "?")
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:13px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        @Auth.CurrentUser?.DisplayName
+                    </div>
+                    <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        @Auth.CurrentUser?.Email
+                    </div>
+                </div>
+                <div @onclick="LogoutAsync" title="Cerrar sesión"
+                     style="width:28px; height:28px; border-radius:7px; display:flex; align-items:center;
+                            justify-content:center; color:var(--text-faint); cursor:pointer; flex:none;">
+                    <svg width="14" height="14" viewBox="0 0 16 16">
+                        <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        <polyline points="10,5 14,8 10,11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="14" y1="8" x2="6" y2="8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
                 </div>
             </div>
         </div>
@@ -172,6 +189,8 @@
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
         => StateHasChanged();
+
+    private async Task LogoutAsync() => await Auth.LogoutAsync();
 
     public void Dispose()
         => Nav.LocationChanged -= OnLocationChanged;
