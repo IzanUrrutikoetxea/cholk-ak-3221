@@ -1,0 +1,21 @@
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string? SubValue { get; set; }
+    [Parameter] public string ValueColor { get; set; } = "var(--text-primary)";
+    [Parameter] public bool MoneyBlur { get; set; } = false;
+    [Parameter] public string ValueSize { get; set; } = "26px";
+    [Parameter] public string CardClass { get; set; } = "card-sm";
+}
+
+<div class="@CardClass">
+    <div class="stat-label">@Label</div>
+    <div class="money @(MoneyBlur ? "money--blurred" : "")"
+         style="font-size:@ValueSize; color:@ValueColor; margin-top:9px; font-family:var(--font-mono);">
+        @Value
+    </div>
+    @if (SubValue is not null)
+    {
+        <div style="font-size:11px; color:@ValueColor; margin-top:3px; font-family:var(--font-mono);">@SubValue</div>
+    }
+</div>

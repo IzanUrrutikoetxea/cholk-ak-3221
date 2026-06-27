@@ -1,0 +1,8 @@
+@code {
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public string Variant { get; set; } = "active"; // long, short, active, challenge, review, profitable
+
+    private string CssClass => $"badge badge-{Variant.ToLower()}";
+}
+
+<span class="@CssClass">@Text</span>

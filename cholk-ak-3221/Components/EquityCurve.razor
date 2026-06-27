@@ -1,0 +1,52 @@
+@code {
+    [Parameter] public List<decimal> Values { get; set; } = new();
+    [Parameter] public int Width { get; set; } = 560;
+    [Parameter] public int Height { get; set; } = 90;
+    [Parameter] public string GradientId { get; set; } = "grad";
+    [Parameter] public bool ShowGrid { get; set; } = false;
+
+    private string ComputePolyline()
+    {
+        if (Values.Count < 2) return "";
+        return string.Join(" ", ComputeCoords());
+    }
+
+    private string ComputePolygon()
+    {
+        if (Values.Count < 2) return "";
+        var pts = ComputeCoords().ToList();
+        return $"{string.Join(" ", pts)} {Width},{Height} 0,{Height}";
+    }
+
+    private IEnumerable<string> ComputeCoords()
+    {
+        var min = Values.Min();
+        var max = Values.Max();
+        var range = max == min ? 1 : max - min;
+        var pad = 6;
+        return Values.Select((v, i) =>
+        {
+            double x = (double)i / (Values.Count - 1) * Width;
+            double y = (Height - pad) - (double)((v - min) / range) * (Height - pad * 2);
+            return $"{x:F0},{y:F0}";
+        });
+    }
+}
+
+<svg viewBox="0 0 @Width @Height" preserveAspectRatio="none" style="width:100%; height:@(Height)px; display:block;">
+    <defs>
+        <linearGradient id="@GradientId" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0.2" />
+            <stop offset="1" stop-color="var(--accent)" stop-opacity="0" />
+        </linearGradient>
+    </defs>
+    @if (ShowGrid)
+    {
+        <line x1="0" y1="@(Height/4)" x2="@Width" y2="@(Height/4)" stroke="#1c1825" stroke-width="1"/>
+        <line x1="0" y1="@(Height/2)" x2="@Width" y2="@(Height/2)" stroke="#1c1825" stroke-width="1"/>
+        <line x1="0" y1="@(Height*3/4)" x2="@Width" y2="@(Height*3/4)" stroke="#1c1825" stroke-width="1"/>
+    }
+    <polygon points="@ComputePolygon()" fill="url(#@GradientId)" />
+    <polyline points="@ComputePolyline()" fill="none" stroke="var(--accent)" stroke-width="2.2"
+              stroke-linejoin="round" stroke-linecap="round" />
+</svg>

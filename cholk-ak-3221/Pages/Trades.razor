@@ -1,0 +1,295 @@
+@page "/trades"
+@inject DataStore Store
+@inject AppStateService AppState
+
+<PageTitle>Trades — Cholk</PageTitle>
+
+<div class="page-content">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Trades</div>
+            <div class="page-subtitle">
+                @filteredTrades.Count operaciones · @DateTime.Today.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))
+            </div>
+        </div>
+        <button class="btn-primary" @onclick="OpenAddTrade">
+            <span class="btn-plus">+</span> Nuevo trade
+        </button>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip-5">
+        <StatCard Label="P&L NETO" Value="@($"+{NetPnl:N0} €")" ValueColor="var(--green)" CardClass="card-sm" />
+        <StatCard Label="WIN RATE" Value="@($"{WinRate:F0}%")" CardClass="card-sm" />
+        <StatCard Label="PROFIT FACTOR" Value="@($"{ProfitFactor:F1}")" CardClass="card-sm" />
+        <StatCard Label="GANADAS / PERDIDAS" Value="@($"{WonCount} / {LostCount}")" CardClass="card-sm" />
+        <StatCard Label="ABIERTOS" Value="@OpenCount.ToString()" CardClass="card-sm" />
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+        <!-- Account filter -->
+        <div class="segmented">
+            <div class="segmented-item @(filterAccount == "" ? "active" : "")"
+                 @onclick='() => SetAccountFilter("")'>Todas</div>
+            @foreach (var acc in accountNames)
+            {
+                <div class="segmented-item @(filterAccount == acc ? "active" : "")"
+                     @onclick="() => SetAccountFilter(acc)">@acc</div>
+            }
+        </div>
+
+        <!-- Direction filter -->
+        <div class="segmented">
+            <div class="segmented-item @(filterDir == "" ? "active" : "")"
+                 @onclick='() => SetDirFilter("")'>Todos</div>
+            <div class="segmented-item @(filterDir == "Long" ? "active" : "")"
+                 @onclick='() => SetDirFilter("Long")'>Long</div>
+            <div class="segmented-item @(filterDir == "Short" ? "active" : "")"
+                 @onclick='() => SetDirFilter("Short")'>Short</div>
+        </div>
+
+        <div style="flex:1;"></div>
+
+        <!-- Search -->
+        <div class="search-input">
+            <svg width="14" height="14" viewBox="0 0 16 16">
+                <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+                <line x1="11" y1="11" x2="14" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <input @bind="searchText" @bind:event="oninput" placeholder="Buscar símbolo…" />
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <div style="min-width:1080px;">
+                <!-- Head -->
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 22px;
+                            border-bottom:1px solid var(--card-border);
+                            font-size:10px; font-family:var(--font-mono); color:var(--text-dead);
+                            letter-spacing:0.06em;">
+                    <div style="width:74px;">SÍMBOLO</div>
+                    <div style="width:58px;">DIR.</div>
+                    <div style="width:104px;">CUENTA</div>
+                    <div style="width:70px; text-align:right;">ENTRADA</div>
+                    <div style="width:70px; text-align:right;">SALIDA</div>
+                    <div style="width:66px; text-align:right;">SL</div>
+                    <div style="width:66px; text-align:right;">TP</div>
+                    <div style="width:130px;">SETUP</div>
+                    <div style="flex:1; text-align:right;">%</div>
+                    <div style="width:84px; text-align:right;">P&amp;L</div>
+                    <div style="width:60px; text-align:right;">FECHA</div>
+                </div>
+
+                <!-- Rows -->
+                @foreach (var t in PagedTrades)
+                {
+                    <div style="display:flex; align-items:center; gap:14px; padding:14px 22px;
+                                border-bottom:1px solid var(--border-dim);
+                                font-family:var(--font-mono); font-size:12px;">
+                        <div style="width:74px; color:var(--text-primary);">@t.Symbol</div>
+                        <div style="width:58px;">
+                            <Badge Text="@t.Direction.ToString().ToUpper()" Variant="@t.Direction.ToString().ToLower()" />
+                        </div>
+                        <div style="width:104px; color:var(--text-dim);">@t.AccountName</div>
+                        <div style="width:70px; text-align:right; color:var(--text-dim);">@t.EntryPrice</div>
+                        <div style="width:70px; text-align:right; color:var(--text-dim);">
+                            @(t.ExitPrice.HasValue ? t.ExitPrice.Value.ToString() : "—")
+                        </div>
+                        <div style="width:66px; text-align:right; color:var(--text-dead);">@t.StopLoss</div>
+                        <div style="width:66px; text-align:right; color:var(--text-dead);">@t.TakeProfit</div>
+                        <div style="width:130px; color:var(--text-faint); font-family:var(--font-ui);">@t.Setup</div>
+                        <div style="flex:1; text-align:right; color:@(t.PnlPercent >= 0 ? "var(--green)" : "var(--red)");">
+                            @(t.PnlPercent >= 0 ? "+" : "")@t.PnlPercent.ToString("F1")%
+                        </div>
+                        <div style="width:84px; text-align:right; color:@(t.Pnl >= 0 ? "var(--green)" : "var(--red)");">
+                            @(t.Pnl >= 0 ? "+" : "")@t.Pnl.ToString("N0") €
+                        </div>
+                        <div style="width:60px; text-align:right; color:var(--text-dead);">
+                            @(t.ClosedAt.HasValue ? t.ClosedAt.Value.ToString("dd/MM") : "—")
+                        </div>
+                    </div>
+                }
+
+                @if (!PagedTrades.Any())
+                {
+                    <div style="padding:32px; text-align:center; color:var(--text-ghost);
+                                font-family:var(--font-mono); font-size:13px;">
+                        No hay trades que coincidan con el filtro.
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <span>Mostrando @PagedTrades.Count de @filteredTrades.Count</span>
+            <div class="pagination-pages">
+                <button class="pagination-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">‹</button>
+                @for (var p = 1; p <= TotalPages; p++)
+                {
+                    var pg = p;
+                    <button class="pagination-btn @(pg == currentPage ? "active" : "")"
+                            @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="pagination-btn" @onclick="NextPage" disabled="@(currentPage == TotalPages)">›</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Trade Modal -->
+@if (showAddModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-title">Nuevo trade</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Símbolo</label>
+                    <input class="form-control" @bind="newTrade.Symbol" placeholder="Ej. EURUSD" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Dirección</label>
+                    <select class="form-control" @bind="newTrade.Direction">
+                        <option value="@TradeDirection.Long">Long</option>
+                        <option value="@TradeDirection.Short">Short</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Cuenta</label>
+                    <select class="form-control" @bind="newTrade.AccountName">
+                        @foreach (var acc in accountNames)
+                        {
+                            <option value="@acc">@acc</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Setup</label>
+                    <input class="form-control" @bind="newTrade.Setup" placeholder="Ej. Breakout London" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Precio entrada</label>
+                    <input class="form-control" type="number" step="0.0001" @bind="newTrade.EntryPrice" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Precio salida</label>
+                    <input class="form-control" type="number" step="0.0001" @bind="exitPriceInput" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Stop Loss</label>
+                    <input class="form-control" type="number" step="0.0001" @bind="newTrade.StopLoss" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Take Profit</label>
+                    <input class="form-control" type="number" step="0.0001" @bind="newTrade.TakeProfit" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">P&L (€)</label>
+                    <input class="form-control" type="number" @bind="newTrade.Pnl" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">P&L (%)</label>
+                    <input class="form-control" type="number" step="0.01" @bind="newTrade.PnlPercent" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notas</label>
+                <input class="form-control" @bind="newTrade.Notes" placeholder="Observaciones…" />
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" @onclick="CloseModal">Cancelar</button>
+                <button class="btn-primary" @onclick="SaveTrade">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Trade> allTrades = new();
+    private List<Trade> filteredTrades = new();
+    private List<string> accountNames = new();
+
+    private string filterAccount = "";
+    private string filterDir = "";
+    private string searchText = "";
+    private int currentPage = 1;
+    private const int PageSize = 10;
+
+    private bool showAddModal = false;
+    private Trade newTrade = new();
+    private decimal? exitPriceInput;
+
+    private decimal NetPnl => filteredTrades.Where(t => t.Status == TradeStatus.Closed).Sum(t => t.Pnl);
+    private double WinRate => TradeAnalytics.WinRate(filteredTrades);
+    private double ProfitFactor => TradeAnalytics.ProfitFactor(filteredTrades);
+    private int WonCount => filteredTrades.Count(t => t.Status == TradeStatus.Closed && t.Pnl > 0);
+    private int LostCount => filteredTrades.Count(t => t.Status == TradeStatus.Closed && t.Pnl < 0);
+    private int OpenCount => filteredTrades.Count(t => t.Status == TradeStatus.Open);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(filteredTrades.Count / (double)PageSize));
+
+    private List<Trade> PagedTrades => filteredTrades
+        .Skip((currentPage - 1) * PageSize)
+        .Take(PageSize)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        allTrades = await Store.GetTradesAsync();
+        var accounts = await Store.GetAccountsAsync();
+        accountNames = allTrades.Select(t => t.AccountName).Distinct().OrderBy(x => x).ToList();
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredTrades = allTrades
+            .Where(t => string.IsNullOrEmpty(filterAccount) || t.AccountName == filterAccount)
+            .Where(t => string.IsNullOrEmpty(filterDir) || t.Direction.ToString() == filterDir)
+            .Where(t => string.IsNullOrEmpty(searchText) ||
+                        t.Symbol.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                        t.Setup.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(t => t.OpenedAt)
+            .ToList();
+        currentPage = 1;
+    }
+
+    private void SetAccountFilter(string acc) { filterAccount = acc; ApplyFilters(); }
+    private void SetDirFilter(string dir) { filterDir = dir; ApplyFilters(); }
+
+    private void GoToPage(int p) => currentPage = p;
+    private void PrevPage() { if (currentPage > 1) currentPage--; }
+    private void NextPage() { if (currentPage < TotalPages) currentPage++; }
+
+    private void OpenAddTrade() { newTrade = new() { OpenedAt = DateTime.Today }; exitPriceInput = null; showAddModal = true; }
+    private void CloseModal() => showAddModal = false;
+
+    private async Task SaveTrade()
+    {
+        if (string.IsNullOrWhiteSpace(newTrade.Symbol)) return;
+        if (exitPriceInput.HasValue)
+        {
+            newTrade.ExitPrice = exitPriceInput;
+            newTrade.ClosedAt = DateTime.Today;
+            newTrade.Status = TradeStatus.Closed;
+        }
+        await Store.AddTradeAsync(newTrade);
+        allTrades = await Store.GetTradesAsync();
+        accountNames = allTrades.Select(t => t.AccountName).Distinct().OrderBy(x => x).ToList();
+        ApplyFilters();
+        CloseModal();
+    }
+}

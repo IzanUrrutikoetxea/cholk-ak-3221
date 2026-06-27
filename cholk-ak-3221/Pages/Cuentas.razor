@@ -1,0 +1,189 @@
+@page "/cuentas"
+@inject DataStore Store
+@inject AppStateService AppState
+
+<PageTitle>Cuentas — Cholk</PageTitle>
+
+<div class="page-content">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Cuentas</div>
+            <div class="page-subtitle">@accounts.Count cuentas · @TotalPatrimonio.ToString("N0") € en total</div>
+        </div>
+        <button class="btn-primary" @onclick="OpenAddAccount">
+            <span class="btn-plus">+</span> Nueva cuenta
+        </button>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip">
+        <StatCard Label="PATRIMONIO TOTAL" Value="@($"{TotalPatrimonio:N0} €")"
+                  MoneyBlur="@AppState.PrivacyMode" />
+        <StatCard Label="BANCA + EFECTIVO" Value="@($"{BankTotal:N0} €")"
+                  SubValue="@($"{BankPct:F0}%")"
+                  MoneyBlur="@AppState.PrivacyMode" />
+        <StatCard Label="CUENTAS DE TRADING" Value="@($"{TradingTotal:N0} €")"
+                  SubValue="@($"{TradingPct:F0}% · {TradingCount} cuentas")"
+                  MoneyBlur="@AppState.PrivacyMode" />
+        <StatCard Label="P&L TRADING (MES)" Value="@($"+{TradingMonthPnl:N0} €")"
+                  SubValue="@($"+{TradingMonthPct:F1}%")"
+                  ValueColor="var(--green)" />
+    </div>
+
+    <!-- Bank + Cash -->
+    <div class="section-title">
+        Bancos y efectivo
+        <span class="section-title-count">@bankAccounts.Count</span>
+    </div>
+    <div class="grid-3" style="margin-bottom:34px;">
+        @foreach (var acc in bankAccounts)
+        {
+            <div class="card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                    <div class="account-logo" style="width:38px; height:38px; font-size:13px;">@acc.Abbreviation</div>
+                    <div style="flex:1;">
+                        <div style="font-size:14px; color:var(--text-primary);">@acc.Name</div>
+                        <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono);">@acc.Subtitle</div>
+                    </div>
+                </div>
+                <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
+                     style="font-family:var(--font-mono); font-size:24px;">
+                    @acc.Balance.ToString("N0") €
+                </div>
+                <div style="font-size:12px; margin-top:5px; font-family:var(--font-mono);
+                            color:@(acc.MonthPnl >= 0 ? "var(--green)" : "var(--red)");">
+                    @(acc.MonthPnl >= 0 ? "▲" : "▼") @(acc.MonthPnl != 0 ? $"+{acc.MonthPnl:N0} € este mes" : "— sin cambios")
+                </div>
+            </div>
+        }
+        <div class="card-add" @onclick="OpenAddAccount">
+            <div class="card-add-circle">+</div>
+            <div style="font-size:13px;">Añadir cuenta bancaria</div>
+        </div>
+    </div>
+
+    <!-- Trading accounts -->
+    <div class="section-title">
+        Cuentas de trading
+        <span class="section-title-count">@tradingAccounts.Count</span>
+    </div>
+    <div class="grid-3">
+        @foreach (var acc in tradingAccounts)
+        {
+            <div class="card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                    <div class="account-logo" style="width:38px; height:38px; font-size:13px;">@acc.Abbreviation</div>
+                    <div style="flex:1;">
+                        <div style="font-size:14px; color:var(--text-primary);">@acc.Name</div>
+                        <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono);">@acc.Subtitle</div>
+                    </div>
+                    @if (acc.Status == AccountStatus.Active)
+                    {
+                        <Badge Text="Activa" Variant="active" />
+                    }
+                    else if (acc.Status == AccountStatus.Challenge)
+                    {
+                        <Badge Text="Reto" Variant="challenge" />
+                    }
+                </div>
+                <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
+                     style="font-family:var(--font-mono); font-size:24px;">
+                    @acc.Balance.ToString("N0") €
+                </div>
+                <div style="font-size:12px; margin-top:5px; font-family:var(--font-mono);
+                            color:@(acc.MonthPnl >= 0 ? "var(--green)" : "var(--red)");">
+                    ▲ +@acc.MonthPnl.ToString("N0") € · +@(acc.Balance > 0 ? (acc.MonthPnl / acc.Balance * 100).ToString("F1") : "0")%
+                </div>
+                <div style="margin-top:14px;">
+                    <Sparkline Values="@acc.EquityHistory" Width="280" Height="38" />
+                </div>
+            </div>
+        }
+        <div class="card-add" @onclick="OpenAddAccount">
+            <div class="card-add-circle">+</div>
+            <div style="font-size:13px;">Añadir cuenta de trading</div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+@if (showAddModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-title">Nueva cuenta</div>
+            <div class="form-group">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" @bind="newAccount.Name" placeholder="Ej. Pepperstone" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Abreviatura</label>
+                    <input class="form-control" @bind="newAccount.Abbreviation" placeholder="Ej. PP" maxlength="3" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-control" @bind="newAccount.Type">
+                        <option value="@AccountType.Bank">Banco</option>
+                        <option value="@AccountType.Trading">Trading</option>
+                        <option value="@AccountType.Cash">Efectivo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Descripción</label>
+                    <input class="form-control" @bind="newAccount.Subtitle" placeholder="Ej. Razor · personal" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Saldo inicial (€)</label>
+                    <input class="form-control" type="number" @bind="newAccount.Balance" />
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" @onclick="CloseModal">Cancelar</button>
+                <button class="btn-primary" @onclick="SaveAccount">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Account> accounts = new();
+    private List<Account> bankAccounts = new();
+    private List<Account> tradingAccounts = new();
+    private bool showAddModal = false;
+    private Account newAccount = new();
+
+    private decimal TotalPatrimonio => accounts.Sum(a => a.Balance);
+    private decimal BankTotal => accounts.Where(a => a.Type != AccountType.Trading).Sum(a => a.Balance);
+    private decimal TradingTotal => accounts.Where(a => a.Type == AccountType.Trading).Sum(a => a.Balance);
+    private double BankPct => TotalPatrimonio == 0 ? 0 : (double)(BankTotal / TotalPatrimonio * 100);
+    private double TradingPct => TotalPatrimonio == 0 ? 0 : (double)(TradingTotal / TotalPatrimonio * 100);
+    private int TradingCount => tradingAccounts.Count;
+    private decimal TradingMonthPnl => tradingAccounts.Sum(a => a.MonthPnl);
+    private double TradingMonthPct => TradingTotal == 0 ? 0 : (double)(TradingMonthPnl / (TradingTotal - TradingMonthPnl) * 100);
+
+    protected override async Task OnInitializedAsync()
+    {
+        accounts = await Store.GetAccountsAsync();
+        bankAccounts = accounts.Where(a => a.Type != AccountType.Trading).ToList();
+        tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
+    }
+
+    private void OpenAddAccount() { newAccount = new(); showAddModal = true; }
+    private void CloseModal() => showAddModal = false;
+
+    private async Task SaveAccount()
+    {
+        if (string.IsNullOrWhiteSpace(newAccount.Name)) return;
+        newAccount.EquityHistory = [newAccount.Balance];
+        await Store.AddAccountAsync(newAccount);
+        accounts = await Store.GetAccountsAsync();
+        bankAccounts = accounts.Where(a => a.Type != AccountType.Trading).ToList();
+        tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
+        CloseModal();
+    }
+}

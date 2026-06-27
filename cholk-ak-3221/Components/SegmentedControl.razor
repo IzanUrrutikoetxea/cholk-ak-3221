@@ -1,0 +1,20 @@
+@code {
+    [Parameter] public List<string> Items { get; set; } = new();
+    [Parameter] public string Selected { get; set; } = "";
+    [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+
+    private async Task Select(string item)
+    {
+        Selected = item;
+        await SelectedChanged.InvokeAsync(item);
+    }
+}
+
+<div class="segmented">
+    @foreach (var item in Items)
+    {
+        <div class="segmented-item @(item == Selected ? "active" : "")" @onclick="() => Select(item)">
+            @item
+        </div>
+    }
+</div>

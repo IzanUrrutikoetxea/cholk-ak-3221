@@ -1,0 +1,269 @@
+@page "/analitica"
+@inject DataStore Store
+
+<PageTitle>Analítica — Cholk</PageTitle>
+
+<div class="page-content">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Analítica</div>
+            <div class="page-subtitle">Rendimiento de trading · @PeriodLabel</div>
+        </div>
+        <SegmentedControl Items="Periods" @bind-Selected="selectedPeriod" />
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-strip-5" style="margin-bottom:18px;">
+        <StatCard Label="P&L TOTAL" Value="@($"+{TotalPnl:N0} €")" ValueColor="var(--green)" CardClass="card-sm" />
+        <StatCard Label="WIN RATE" Value="@($"{WinRate:F0}%")" CardClass="card-sm" />
+        <StatCard Label="PROFIT FACTOR" Value="@($"{ProfitFactor:F1}")" CardClass="card-sm" />
+        <StatCard Label="MEJOR TRADE" Value="@($"+{BestTrade:N0} €")" ValueColor="var(--green)" CardClass="card-sm" />
+        <StatCard Label="PEOR TRADE" Value="@($"{WorstTrade:N0} €")" ValueColor="var(--red)" CardClass="card-sm" />
+        <StatCard Label="RACHA MÁX." Value="@($"{MaxStreak} G")" CardClass="card-sm" />
+    </div>
+
+    <!-- Equity curve -->
+    <div class="card" style="margin-bottom:18px;">
+        <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:18px;">
+            Curva de capital acumulada
+        </div>
+        <EquityCurve Values="@equityCurve" Width="1180" Height="190" GradientId="anal_eq" ShowGrid="true" />
+    </div>
+
+    <!-- 2×2 charts grid -->
+    <div class="grid-2">
+
+        <!-- Monthly P&L bar chart -->
+        <div class="card">
+            <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:24px;">
+                P&amp;L mensual
+            </div>
+            <div style="display:flex; align-items:stretch; gap:18px; height:170px;">
+                <div style="display:flex; flex-direction:column; justify-content:space-between;
+                            font-family:var(--font-mono); font-size:10px; color:var(--text-dead);
+                            text-align:right; padding-bottom:22px;">
+                    <span>@MaxMonthLabel</span>
+                    <span>0</span>
+                    @if (hasNegativeMonth) { <span>@MinMonthLabel</span> }
+                </div>
+                <div style="flex:1; display:flex; align-items:flex-end; gap:10px; position:relative; overflow:hidden;">
+                    @foreach (var (month, pnl) in MonthlyPnl)
+                    {
+                        var barH = BarHeight(pnl);
+                        var isPos = pnl >= 0;
+                        <div style="flex:1; position:relative; height:148px;">
+                            <div style="position:absolute; left:4px; right:4px;
+                                        @(isPos ? $"bottom:40px; height:{barH}px;" : $"top:{ZeroLineY}px; height:{barH}px;")
+                                        background:@(isPos ? "var(--accent)" : "var(--red)");
+                                        border-radius:@(isPos ? "3px 3px 0 0" : "0 0 3px 3px");">
+                            </div>
+                            <div style="position:absolute; bottom:0; left:0; right:0; text-align:center;
+                                        font-family:var(--font-mono); font-size:10px; color:var(--text-dead);">
+                                @MonthLabel(month)
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- P&L by pair -->
+        <div class="card">
+            <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:20px;">
+                P&amp;L por par
+            </div>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                @foreach (var (symbol, pnl) in PnlBySymbol.Take(6))
+                {
+                    var maxAbs = PnlBySymbol.Any() ? (double)PnlBySymbol.Max(x => Math.Abs(x.Value)) : 1;
+                    var width = maxAbs == 0 ? 0 : (double)Math.Abs(pnl) / maxAbs * 100;
+                    <div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+                            <span style="color:var(--text-muted); font-family:var(--font-mono);">@symbol</span>
+                            <span style="font-family:var(--font-mono); color:@(pnl >= 0 ? "var(--green)" : "var(--red)");">
+                                @(pnl >= 0 ? "+" : "")@pnl.ToString("N0") €
+                            </span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" style="width:@(width.ToString("F0"))%;
+                                         background:@(pnl >= 0 ? "var(--accent)" : "var(--red)");"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Long vs Short -->
+        <div class="card">
+            <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:20px;">
+                Long vs Short
+            </div>
+            <div style="display:flex; gap:18px;">
+                <div style="flex:1; background:var(--input-bg); border:1px solid var(--hover-item);
+                            border-radius:12px; padding:18px;">
+                    <div style="font-size:11px; color:var(--green); font-family:var(--font-mono); letter-spacing:0.06em;">
+                        LONG
+                    </div>
+                    <div style="font-family:var(--font-mono); font-size:24px; margin-top:10px;">
+                        @LongWinRate.ToString("F0")%
+                    </div>
+                    <div style="font-size:11px; color:var(--text-ghost); margin-top:4px; font-family:var(--font-mono);">
+                        @LongCount trades · win @LongWinRate.ToString("F0")%
+                    </div>
+                    <div class="progress-bar-track" style="margin-top:14px;">
+                        <div class="progress-bar-fill" style="width:@LongWinRate.ToString("F0")%;"></div>
+                    </div>
+                </div>
+                <div style="flex:1; background:var(--input-bg); border:1px solid var(--hover-item);
+                            border-radius:12px; padding:18px;">
+                    <div style="font-size:11px; color:var(--red); font-family:var(--font-mono); letter-spacing:0.06em;">
+                        SHORT
+                    </div>
+                    <div style="font-family:var(--font-mono); font-size:24px; margin-top:10px;">
+                        @ShortWinRate.ToString("F0")%
+                    </div>
+                    <div style="font-size:11px; color:var(--text-ghost); margin-top:4px; font-family:var(--font-mono);">
+                        @ShortCount trades · win @ShortWinRate.ToString("F0")%
+                    </div>
+                    <div class="progress-bar-track" style="margin-top:14px;">
+                        <div class="progress-bar-fill" style="width:@ShortWinRate.ToString("F0")%; background:#b9b3c2;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P&L by day of week -->
+        <div class="card">
+            <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:24px;">
+                P&amp;L por día de la semana
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:16px; height:150px;">
+                @foreach (var (day, pnl) in DayPnl)
+                {
+                    var h = DayBarHeight(pnl);
+                    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;
+                                height:100%; justify-content:flex-end;">
+                        <div style="width:100%; height:@(h)px;
+                                    background:@(pnl >= 0 ? "var(--accent)" : "var(--red)");
+                                    border-radius:4px 4px 0 0;">
+                        </div>
+                        <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-dead);">
+                            @DayLabel(day)
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Trade> trades = new();
+    private List<Trade> filteredTrades = new();
+    private List<decimal> equityCurve = new();
+
+    private static readonly List<string> Periods = ["1M", "3M", "6M", "1A"];
+    private string selectedPeriod = "6M";
+
+    private string PeriodLabel => selectedPeriod switch
+    {
+        "1M" => "últimos 30 días",
+        "3M" => "últimos 3 meses",
+        "6M" => "últimos 6 meses",
+        "1A" => "último año",
+        _ => "todo"
+    };
+
+    private IEnumerable<Trade> ClosedTrades => filteredTrades.Where(t => t.Status == TradeStatus.Closed);
+
+    private decimal TotalPnl => ClosedTrades.Sum(t => t.Pnl);
+    private double WinRate => TradeAnalytics.WinRate(filteredTrades);
+    private double ProfitFactor => TradeAnalytics.ProfitFactor(filteredTrades);
+    private decimal BestTrade => ClosedTrades.Any() ? ClosedTrades.Max(t => t.Pnl) : 0;
+    private decimal WorstTrade => ClosedTrades.Any() ? ClosedTrades.Min(t => t.Pnl) : 0;
+    private int MaxStreak => TradeAnalytics.MaxWinStreak(filteredTrades);
+
+    private Dictionary<string, decimal> PnlBySymbol => TradeAnalytics.PnlBySymbol(filteredTrades);
+
+    private IEnumerable<(int month, decimal pnl)> MonthlyPnl =>
+        TradeAnalytics.PnlByMonth(filteredTrades).Select(kv => (kv.Key, kv.Value));
+
+    private decimal MaxMonthPnl => MonthlyPnl.Any() ? MonthlyPnl.Max(x => x.pnl) : 1;
+    private decimal MinMonthPnl => MonthlyPnl.Any() ? MonthlyPnl.Min(x => x.pnl) : 0;
+    private bool hasNegativeMonth => MonthlyPnl.Any(x => x.pnl < 0);
+    private string MaxMonthLabel => MaxMonthPnl >= 1000 ? $"+{MaxMonthPnl/1000:F1}k" : $"+{MaxMonthPnl:F0}";
+    private string MinMonthLabel => MinMonthPnl <= -1000 ? $"{MinMonthPnl/1000:F1}k" : $"{MinMonthPnl:F0}";
+
+    private int ZeroLineY => 40;
+
+    private int BarHeight(decimal pnl)
+    {
+        var maxAbs = Math.Max(Math.Abs((double)MaxMonthPnl), Math.Abs((double)MinMonthPnl));
+        if (maxAbs == 0) return 0;
+        return (int)(Math.Abs((double)pnl) / maxAbs * 88);
+    }
+
+    private IEnumerable<(DayOfWeek day, decimal pnl)> DayPnl
+    {
+        get
+        {
+            var byDay = TradeAnalytics.PnlByDayOfWeek(filteredTrades);
+            var days = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday };
+            return days.Select(d => (d, byDay.TryGetValue(d, out var v) ? v : 0m));
+        }
+    }
+
+    private decimal MaxDayPnl => DayPnl.Any() ? DayPnl.Max(x => Math.Abs(x.pnl)) : 1;
+
+    private int DayBarHeight(decimal pnl) =>
+        MaxDayPnl == 0 ? 0 : (int)(Math.Abs((double)pnl) / (double)MaxDayPnl * 120);
+
+    private IEnumerable<Trade> LongTrades => ClosedTrades.Where(t => t.Direction == TradeDirection.Long);
+    private IEnumerable<Trade> ShortTrades => ClosedTrades.Where(t => t.Direction == TradeDirection.Short);
+    private int LongCount => LongTrades.Count();
+    private int ShortCount => ShortTrades.Count();
+    private double LongWinRate => LongCount == 0 ? 0 : (double)LongTrades.Count(t => t.Pnl > 0) / LongCount * 100;
+    private double ShortWinRate => ShortCount == 0 ? 0 : (double)ShortTrades.Count(t => t.Pnl > 0) / ShortCount * 100;
+
+    private static string MonthLabel(int m) => m switch
+    {
+        1 => "Ene", 2 => "Feb", 3 => "Mar", 4 => "Abr", 5 => "May", 6 => "Jun",
+        7 => "Jul", 8 => "Ago", 9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dic",
+        _ => ""
+    };
+
+    private static string DayLabel(DayOfWeek d) => d switch
+    {
+        DayOfWeek.Monday => "Lun", DayOfWeek.Tuesday => "Mar", DayOfWeek.Wednesday => "Mié",
+        DayOfWeek.Thursday => "Jue", DayOfWeek.Friday => "Vie", _ => ""
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        trades = await Store.GetTradesAsync();
+        ApplyPeriodFilter();
+    }
+
+    private void ApplyPeriodFilter()
+    {
+        var cutoff = selectedPeriod switch
+        {
+            "1M" => DateTime.Today.AddMonths(-1),
+            "3M" => DateTime.Today.AddMonths(-3),
+            "6M" => DateTime.Today.AddMonths(-6),
+            "1A" => DateTime.Today.AddYears(-1),
+            _ => DateTime.MinValue
+        };
+
+        filteredTrades = trades
+            .Where(t => t.OpenedAt >= cutoff)
+            .OrderBy(t => t.OpenedAt)
+            .ToList();
+
+        var startCapital = filteredTrades.Where(t => t.Status == TradeStatus.Closed).Sum(t => t.Pnl);
+        equityCurve = TradeAnalytics.EquityCurve(
+            filteredTrades.Where(t => t.Status == TradeStatus.Closed), 0);
+    }
+}

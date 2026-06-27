@@ -1,0 +1,214 @@
+@page "/"
+@inject DataStore Store
+@inject AppStateService AppState
+@inject NavigationManager Nav
+
+<PageTitle>Resumen — Cholk</PageTitle>
+
+<div class="page-content">
+
+    <!-- Header -->
+    <div class="page-header" style="margin-bottom:30px;">
+        <div>
+            <div class="page-title">Resumen</div>
+            <div class="page-subtitle">@DateTime.Today.ToString("dddd d 'de' MMMM, yyyy", new System.Globalization.CultureInfo("es-ES"))</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:14px;">
+            <SegmentedControl Items="Periods" @bind-Selected="selectedPeriod" />
+            <button class="btn-primary" @onclick='() => Nav.NavigateTo("/trades")'>
+                <span class="btn-plus">+</span> Nuevo trade
+            </button>
+        </div>
+    </div>
+
+    <!-- Top row: patrimonio + P&L/winrate/trades -->
+    <div style="display:flex; gap:18px; margin-bottom:18px;">
+
+        <!-- Patrimonio card -->
+        <div class="card" style="flex:1.5;">
+            <div class="stat-label">PATRIMONIO TOTAL</div>
+            <div style="display:flex; align-items:baseline; gap:14px; margin-top:14px;">
+                <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
+                     style="font-family:var(--font-mono); font-size:42px; font-weight:600; letter-spacing:-0.01em;">
+                    @TotalPatrimonio.ToString("N0") €
+                </div>
+                <div style="font-size:14px; color:var(--green); font-family:var(--font-mono);">▲ 2,4%</div>
+            </div>
+            <div style="font-size:12px; color:var(--text-ghost); margin-top:6px;">
+                +@MonthPnl.ToString("N0") € este mes
+            </div>
+            <EquityCurve Values="@equityCurve" Width="560" Height="74" GradientId="resumen_eq" />
+        </div>
+
+        <!-- Right column: P&L + winrate + trades -->
+        <div style="flex:1; display:flex; flex-direction:column; gap:18px;">
+            <div class="card" style="flex:1;">
+                <div class="stat-label">P&amp;L DEL MES</div>
+                <div class="money" style="font-family:var(--font-mono); font-size:28px; color:var(--green); margin-top:10px;">
+                    +@MonthPnl.ToString("N0") €
+                </div>
+                <div style="font-size:12px; color:var(--green); margin-top:3px; font-family:var(--font-mono);">
+                    +@MonthPnlPct.ToString("F1")%
+                </div>
+            </div>
+            <div style="flex:1; display:flex; gap:18px;">
+                <div class="card" style="flex:1;">
+                    <div class="stat-label">WIN RATE</div>
+                    <div class="money" style="font-family:var(--font-mono); font-size:28px; margin-top:10px;">
+                        @WinRate.ToString("F0")%
+                    </div>
+                </div>
+                <div class="card" style="flex:1;">
+                    <div class="stat-label">TRADES</div>
+                    <div class="money" style="font-family:var(--font-mono); font-size:28px; margin-top:10px;">
+                        @trades.Count(t => t.Status == TradeStatus.Closed)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capital curve + distribution -->
+    <div style="display:flex; gap:18px; margin-bottom:18px;">
+        <div class="card" style="flex:2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <div style="font-size:14px; color:var(--text-secondary); font-weight:600;">Curva de capital</div>
+                <div style="font-size:11px; color:var(--text-ghost); font-family:var(--font-mono);">
+                    Suma de cuentas de trading
+                </div>
+            </div>
+            <EquityCurve Values="@tradingEquity" Width="720" Height="188" GradientId="resumen_trading" ShowGrid="true" />
+        </div>
+
+        <div class="card" style="flex:1;">
+            <div style="font-size:14px; color:var(--text-secondary); font-weight:600; margin-bottom:18px;">
+                Distribución
+            </div>
+            <!-- Distribution bar -->
+            <div class="dist-bar">
+                @foreach (var (acc, pct, color) in Distribution)
+                {
+                    <div style="width:@(pct)%; background:@color;"></div>
+                }
+            </div>
+            <div style="display:flex; flex-direction:column; gap:13px; font-size:12px;">
+                @foreach (var (acc, pct, color) in Distribution)
+                {
+                    <div style="display:flex; align-items:center; gap:9px;">
+                        <div style="width:8px; height:8px; border-radius:2px; background:@color;"></div>
+                        <span style="color:var(--text-muted); flex:1;">@acc.Name</span>
+                        <span style="color:var(--text-faint); font-family:var(--font-mono);">
+                            @pct.ToString("F0")%
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Accounts list + last trades -->
+    <div style="display:flex; gap:18px;">
+
+        <!-- Accounts -->
+        <div class="card" style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div style="font-size:14px; color:var(--text-secondary); font-weight:600;">Cuentas</div>
+                <button class="action-link" @onclick='() => Nav.NavigateTo("/cuentas")'>Ver todas</button>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+                @foreach (var acc in accounts)
+                {
+                    <div class="table-row">
+                        <div class="account-logo-sm" style="font-size:11px;">@acc.Abbreviation</div>
+                        <div style="flex:1;">
+                            <div style="font-size:13px; color:var(--text-secondary);">@acc.Name</div>
+                            <div style="font-size:11px; color:var(--text-dead);">@acc.Subtitle</div>
+                        </div>
+                        <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
+                             style="font-family:var(--font-mono); font-size:14px;">
+                            @acc.Balance.ToString("N0") €
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Last trades -->
+        <div class="card" style="flex:1.3;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div style="font-size:14px; color:var(--text-secondary); font-weight:600;">Últimos trades</div>
+                <button class="action-link" @onclick='() => Nav.NavigateTo("/trades")'>Ver registro</button>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+                @foreach (var t in trades.Where(t => t.Status == TradeStatus.Closed)
+                                         .OrderByDescending(t => t.ClosedAt).Take(5))
+                {
+                    <div class="table-row" style="gap:12px;">
+                        <div style="font-family:var(--font-mono); font-size:13px; width:78px;">@t.Symbol</div>
+                        <Badge Text="@t.Direction.ToString().ToUpper()" Variant="@t.Direction.ToString().ToLower()" />
+                        <div style="flex:1;"></div>
+                        <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-dead); width:80px; text-align:right;">
+                            @t.Setup
+                        </div>
+                        <div style="font-family:var(--font-mono); font-size:13px; width:78px; text-align:right;
+                                    color:@(t.Pnl >= 0 ? "var(--green)" : "var(--red)");">
+                            @(t.Pnl >= 0 ? "+" : "")@t.Pnl.ToString("N0") €
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private List<Account> accounts = new();
+    private List<Trade> trades = new();
+    private List<decimal> equityCurve = new();
+    private List<decimal> tradingEquity = new();
+
+    private static readonly List<string> Periods = ["1S", "1M", "1A", "Máx"];
+    private string selectedPeriod = "1M";
+
+    private decimal TotalPatrimonio => accounts.Sum(a => a.Balance);
+    private decimal MonthPnl => accounts.Sum(a => a.MonthPnl);
+    private decimal MonthPnlPct => TotalPatrimonio == 0 ? 0 : MonthPnl / (TotalPatrimonio - MonthPnl) * 100;
+    private double WinRate => TradeAnalytics.WinRate(trades);
+
+    private List<(Account acc, double pct, string color)> Distribution
+    {
+        get
+        {
+            var total = TotalPatrimonio;
+            if (total == 0) return [];
+            var colors = new[] { "var(--accent)", "#a99cc8", "#b9b3c2", "#6d6478", "#403a4a" };
+            return accounts.Select((a, i) => (a, (double)(a.Balance / total * 100), colors[i % colors.Length]))
+                           .OrderByDescending(x => x.Item2).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        accounts = await Store.GetAccountsAsync();
+        trades = await Store.GetTradesAsync();
+
+        var closedTrades = trades.Where(t => t.Status == TradeStatus.Closed)
+                                 .OrderBy(t => t.ClosedAt).ToList();
+
+        // Equity curve from first closed trade
+        var startCapital = TotalPatrimonio - closedTrades.Sum(t => t.Pnl);
+        equityCurve = TradeAnalytics.EquityCurve(closedTrades, startCapital);
+
+        // Trading accounts equity (sum of their histories)
+        var tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
+        if (tradingAccounts.Any())
+        {
+            var maxLen = tradingAccounts.Max(a => a.EquityHistory.Count);
+            tradingEquity = Enumerable.Range(0, maxLen)
+                .Select(i => tradingAccounts.Sum(a =>
+                    i < a.EquityHistory.Count ? a.EquityHistory[i] : a.Balance))
+                .ToList();
+        }
+    }
+}
