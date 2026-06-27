@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "cholk-ak-3221",
   "resources": {
-    "hash": "sha256-F8EizbU8A4lLxPx9+4xeuA5vBo7AqNNKM1FgrGjgIto=",
+    "hash": "sha256-7dc8evppFfrvaUurLrnanPbXPKkbNOZROkTFlu2r5YQ=",
     "fingerprinting": {
       "Blazored.LocalStorage.12n6dz54qr.wasm": "Blazored.LocalStorage.wasm",
       "Microsoft.AspNetCore.Components.bvw88cz7gi.wasm": "Microsoft.AspNetCore.Components.wasm",
@@ -45,7 +45,7 @@
       "System.Threading.7055ccqcy3.wasm": "System.Threading.wasm",
       "System.sal18ehrzx.wasm": "System.wasm",
       "System.Private.CoreLib.hph835hkk0.wasm": "System.Private.CoreLib.wasm",
-      "cholk-ak-3221.cppofuym8n.wasm": "cholk-ak-3221.wasm",
+      "cholk-ak-3221.vhfhajb3rp.wasm": "cholk-ak-3221.wasm",
       "dotnet.js": "dotnet.js",
       "dotnet.native.qc8g39g30v.js": "dotnet.native.js",
       "dotnet.native.boem75ye5i.wasm": "dotnet.native.wasm",
@@ -113,7 +113,7 @@
       "System.Text.RegularExpressions.dwna9u5pei.wasm": "sha256-fQij9UYcRd8Vjy+jA7EOBQnPV3Y0b1/w50x05mzkH30=",
       "System.Threading.7055ccqcy3.wasm": "sha256-l4RXz2e1mao4bugUEQSsGT8sratjmtFaCF5YdKGdQtQ=",
       "System.sal18ehrzx.wasm": "sha256-7A2VUL5SS7XF9SMTD/1ZoA+DNXtehpDAPs15R9lyz3A=",
-      "cholk-ak-3221.cppofuym8n.wasm": "sha256-4CBRB0lsD06Ca2pfskNcgVmiZOIy/Lcq2In1wIuLjdc="
+      "cholk-ak-3221.vhfhajb3rp.wasm": "sha256-TbEJAxuJn9Ls6jZns/0vrBewVuQjqvhUXSrcaCvhawM="
     }
   },
   "cacheBootResources": true,
