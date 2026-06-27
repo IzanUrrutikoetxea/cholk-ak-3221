@@ -9,7 +9,8 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // ── API HttpClient ────────────────────────────────────────────────────────────
-var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7100";
+var apiBase = builder.Configuration["ApiBaseUrl"];
+if (string.IsNullOrWhiteSpace(apiBase)) apiBase = "https://localhost:7100";
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBase) });
 
 // ── Core services ─────────────────────────────────────────────────────────────
