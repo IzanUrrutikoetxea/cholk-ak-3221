@@ -60,7 +60,8 @@
         _loading = true;
         var ok = await Auth.LoginAsync(_email, _password);
         _loading = false;
-        if (!ok) _error = "Email o contraseña incorrectos.";
+        if (ok) Nav.NavigateTo("");
+        else _error = "Email o contraseña incorrectos.";
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)

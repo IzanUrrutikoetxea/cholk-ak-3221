@@ -72,6 +72,7 @@
         _loading = true;
         var (ok, err) = await Auth.RegisterAsync(_email, _password, _displayName);
         _loading = false;
-        if (!ok) _error = err;
+        if (ok) Nav.NavigateTo("");
+        else _error = err;
     }
 }
