@@ -27,29 +27,43 @@ public class AuthService(HttpClient http, ILocalStorageService storage)
 
     public async Task<bool> LoginAsync(string email, string password)
     {
-        var response = await http.PostAsJsonAsync("/auth/login", new { email, password });
-        if (!response.IsSuccessStatusCode) return false;
+        try
+        {
+            var response = await http.PostAsJsonAsync("/auth/login", new { email, password });
+            if (!response.IsSuccessStatusCode) return false;
 
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        if (result is null) return false;
+            var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            if (result is null) return false;
 
-        await PersistSession(result);
-        return true;
+            await PersistSession(result);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<(bool Success, string? Error)> RegisterAsync(string email, string password, string displayName)
     {
-        var response = await http.PostAsJsonAsync("/auth/register", new { email, password, displayName });
-        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-            return (false, "Este email ya está registrado.");
-        if (!response.IsSuccessStatusCode)
-            return (false, "Error al registrar. Inténtalo de nuevo.");
+        try
+        {
+            var response = await http.PostAsJsonAsync("/auth/register", new { email, password, displayName });
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                return (false, "Este email ya está registrado.");
+            if (!response.IsSuccessStatusCode)
+                return (false, "Error al registrar. Inténtalo de nuevo.");
 
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        if (result is null) return (false, "Error inesperado.");
+            var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            if (result is null) return (false, "Error inesperado.");
 
-        await PersistSession(result);
-        return (true, null);
+            await PersistSession(result);
+            return (true, null);
+        }
+        catch
+        {
+            return (false, "No se puede conectar con el servidor. Comprueba tu conexión.");
+        }
     }
 
     public async Task LogoutAsync()
