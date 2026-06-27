@@ -29,15 +29,38 @@ jobs:
           dotnet publish cholk-ak-3221/cholk-ak-3221.csproj \
             -c Release -o publish
 
-      - name: Fix base href and styles path for GitHub Pages
+      - name: Fix base href for GitHub Pages
         run: |
           sed -i 's|<base href="/" />|<base href="/cholk-ak-3221/" />|g' \
             publish/wwwroot/index.html
-          sed -i 's|href="cholk-ak-3221.styles.css"|href="/cholk-ak-3221/cholk-ak-3221.styles.css"|g' \
+
+      - name: Inject SPA redirect handler into index.html
+        run: |
+          sed -i 's|</head>|<script>(function(l){if(l.search[1]==="/"){ var d=l.search.slice(1).split("\&").map(function(s){return s.replace(/~and~/g,"\&")}).join("?");window.history.replaceState(null,null,l.pathname.slice(0,-1)+d+l.hash)}}(window.location))</script></head>|g' \
             publish/wwwroot/index.html
 
-      - name: SPA routing fix (404.html)
-        run: cp publish/wwwroot/index.html publish/wwwroot/404.html
+      - name: Create 404.html with SPA redirect
+        run: |
+          cat > publish/wwwroot/404.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Cholk</title>
+            <script>
+              var l = window.location;
+              l.replace(
+                l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+                l.pathname.split('/').slice(0, 2).join('/') + '/?/' +
+                l.pathname.slice(1).split('/').slice(1).join('/').replace(/&/g, '~and~') +
+                (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+                l.hash
+              );
+            </script>
+          </head>
+          <body></body>
+          </html>
+          EOF
 
       - name: Disable Jekyll
         run: touch publish/wwwroot/.nojekyll
