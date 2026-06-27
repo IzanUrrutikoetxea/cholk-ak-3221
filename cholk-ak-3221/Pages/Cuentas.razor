@@ -10,7 +10,7 @@
     <div class="page-header">
         <div>
             <div class="page-title">Cuentas</div>
-            <div class="page-subtitle">@accounts.Count cuentas · @TotalPatrimonio.ToString("N0") € en total</div>
+            <div class="page-subtitle">@accounts.Count cuentas · @($"{TotalPatrimonio:N0}") € en total</div>
         </div>
         <button class="btn-primary" @onclick="OpenAddAccount">
             <span class="btn-plus">+</span> Nueva cuenta
@@ -40,13 +40,21 @@
     <div class="grid-3" style="margin-bottom:34px;">
         @foreach (var acc in bankAccounts)
         {
-            <div class="card">
+            <div class="card" style="cursor:pointer; transition:border-color 0.15s;"
+                 @onclick="() => OpenAccountDetail(acc)"
+                 @onmouseenter="() => hoveredId = acc.Id"
+                 @onmouseleave="() => hoveredId = null">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
                     <div class="account-logo" style="width:38px; height:38px; font-size:13px;">@acc.Abbreviation</div>
                     <div style="flex:1;">
                         <div style="font-size:14px; color:var(--text-primary);">@acc.Name</div>
                         <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono);">@acc.Subtitle</div>
                     </div>
+                    <!-- Click hint -->
+                    <svg width="14" height="14" viewBox="0 0 16 16" style="color:var(--text-darkest); flex:none;">
+                        <polyline points="6,3 11,8 6,13" fill="none" stroke="currentColor"
+                                  stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+                    </svg>
                 </div>
                 <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
                      style="font-family:var(--font-mono); font-size:24px;">
@@ -54,8 +62,14 @@
                 </div>
                 <div style="font-size:12px; margin-top:5px; font-family:var(--font-mono);
                             color:@(acc.MonthPnl >= 0 ? "var(--green)" : "var(--red)");">
-                    @(acc.MonthPnl >= 0 ? "▲" : "▼") @(acc.MonthPnl != 0 ? $"+{acc.MonthPnl:N0} € este mes" : "— sin cambios")
+                    @(acc.MonthPnl > 0 ? $"▲ +{acc.MonthPnl:N0} €" : acc.MonthPnl < 0 ? $"▼ {acc.MonthPnl:N0} €" : "— sin cambios")
                 </div>
+                @if (acc.Operations.Any())
+                {
+                    <div style="margin-top:12px; font-size:11px; color:var(--text-darkest); font-family:var(--font-mono);">
+                        Última op: @acc.Operations.Last().Description
+                    </div>
+                }
             </div>
         }
         <div class="card-add" @onclick="OpenAddAccount">
@@ -97,7 +111,7 @@
                     ▲ +@acc.MonthPnl.ToString("N0") € · +@(acc.Balance > 0 ? (acc.MonthPnl / acc.Balance * 100).ToString("F1") : "0")%
                 </div>
                 <div style="margin-top:14px;">
-                    <Sparkline Values="@acc.EquityHistory" Width="280" Height="38" />
+                    <Sparkline Values="@acc.EquityHistory" Width="460" Height="44" />
                 </div>
             </div>
         }
@@ -108,7 +122,140 @@
     </div>
 </div>
 
-<!-- Add Account Modal -->
+<!-- ══════════════════════════════════════════
+     ACCOUNT DETAIL MODAL (bank/cash accounts)
+     ══════════════════════════════════════════ -->
+@if (detailAccount is not null)
+{
+    <div class="modal-overlay" @onclick="CloseDetail">
+        <div class="modal" style="min-width:500px; max-width:620px;" @onclick:stopPropagation="true">
+
+            <!-- Header -->
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:28px;">
+                <div class="account-logo" style="width:44px; height:44px; font-size:14px;">
+                    @detailAccount.Abbreviation
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:18px; font-weight:600; color:var(--text-primary);">
+                        @detailAccount.Name
+                    </div>
+                    <div style="font-size:12px; color:var(--text-dead); font-family:var(--font-mono); margin-top:2px;">
+                        @detailAccount.Subtitle
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="stat-label">SALDO ACTUAL</div>
+                    <div class="money @(AppState.PrivacyMode ? "money--blurred" : "")"
+                         style="font-family:var(--font-mono); font-size:28px; margin-top:4px;">
+                        @detailAccount.Balance.ToString("N0") €
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operación form -->
+            <div style="background:var(--input-bg); border:1px solid var(--card-border);
+                        border-radius:var(--radius-lg); padding:20px; margin-bottom:24px;">
+                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:16px;">
+                    Nueva operación
+                </div>
+
+                <!-- +/- toggle -->
+                <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    <button @onclick='() => opSign = 1'
+                            style="flex:1; padding:9px; border-radius:var(--radius-md); font-size:13px;
+                                   border:1px solid @(opSign == 1 ? "var(--green)" : "var(--card-border)");
+                                   background:@(opSign == 1 ? "var(--green-bg)" : "none");
+                                   color:@(opSign == 1 ? "var(--green)" : "var(--text-faint)");
+                                   cursor:pointer; font-family:var(--font-mono); transition:all 0.15s;">
+                        + Ingreso
+                    </button>
+                    <button @onclick='() => opSign = -1'
+                            style="flex:1; padding:9px; border-radius:var(--radius-md); font-size:13px;
+                                   border:1px solid @(opSign == -1 ? "var(--red)" : "var(--card-border)");
+                                   background:@(opSign == -1 ? "var(--red-bg)" : "none");
+                                   color:@(opSign == -1 ? "var(--red)" : "var(--text-faint)");
+                                   cursor:pointer; font-family:var(--font-mono); transition:all 0.15s;">
+                        − Gasto
+                    </button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Importe (€)</label>
+                        <input class="form-control" type="number" min="0" step="0.01"
+                               @bind="opAmount" placeholder="0.00" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Descripción</label>
+                        <input class="form-control" @bind="opDescription"
+                               placeholder="Ej. Nómina, alquiler…" />
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                @if (opAmount > 0)
+                {
+                    var newBalance = detailAccount.Balance + opSign * opAmount;
+                    var diff = opSign * opAmount;
+                    <div style="margin-top:14px; display:flex; justify-content:space-between;
+                                font-size:12px; font-family:var(--font-mono); color:var(--text-ghost);">
+                        <span>Nuevo saldo:</span>
+                        <span style="color:@(diff >= 0 ? "var(--green)" : "var(--red)");">
+                            @(diff >= 0 ? "+" : "")@diff.ToString("N0") € → @newBalance.ToString("N0") €
+                        </span>
+                    </div>
+                }
+
+                <div style="margin-top:14px; text-align:right;">
+                    <button class="btn-primary" @onclick="ApplyOperation"
+                            disabled="@(opAmount <= 0)"
+                            style="@(opAmount <= 0 ? "opacity:0.5; cursor:not-allowed;" : "")">
+                        Aplicar operación
+                    </button>
+                </div>
+            </div>
+
+            <!-- Operations history -->
+            @if (detailAccount.Operations.Any())
+            {
+                <div>
+                    <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:12px;">
+                        Historial
+                    </div>
+                    <div style="display:flex; flex-direction:column; max-height:220px; overflow-y:auto;">
+                        @foreach (var op in detailAccount.Operations.OrderByDescending(o => o.Date))
+                        {
+                            <div style="display:flex; align-items:center; gap:12px; padding:10px 0;
+                                        border-bottom:1px solid var(--border-dim);">
+                                <div style="font-size:11px; color:var(--text-dead); font-family:var(--font-mono); width:60px;">
+                                    @op.Date.ToString("dd/MM/yy")
+                                </div>
+                                <div style="flex:1; font-size:13px; color:var(--text-muted);">@op.Description</div>
+                                <div style="font-family:var(--font-mono); font-size:13px;
+                                            color:@(op.Amount >= 0 ? "var(--green)" : "var(--red)");">
+                                    @(op.Amount >= 0 ? "+" : "")@op.Amount.ToString("N0") €
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div style="text-align:center; padding:16px 0; font-size:13px;
+                            color:var(--text-ghost); font-family:var(--font-mono);">
+                    Sin operaciones registradas
+                </div>
+            }
+
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn-secondary" @onclick="CloseDetail">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ADD ACCOUNT MODAL -->
 @if (showAddModal)
 {
     <div class="modal-overlay" @onclick="CloseModal">
@@ -154,9 +301,19 @@
     private List<Account> accounts = new();
     private List<Account> bankAccounts = new();
     private List<Account> tradingAccounts = new();
+    private Guid? hoveredId;
+
+    // Add account
     private bool showAddModal = false;
     private Account newAccount = new();
 
+    // Account detail
+    private Account? detailAccount = null;
+    private int opSign = 1;       // +1 = income, -1 = expense
+    private decimal opAmount = 0;
+    private string opDescription = "";
+
+    // Computed totals
     private decimal TotalPatrimonio => accounts.Sum(a => a.Balance);
     private decimal BankTotal => accounts.Where(a => a.Type != AccountType.Trading).Sum(a => a.Balance);
     private decimal TradingTotal => accounts.Where(a => a.Type == AccountType.Trading).Sum(a => a.Balance);
@@ -164,14 +321,19 @@
     private double TradingPct => TotalPatrimonio == 0 ? 0 : (double)(TradingTotal / TotalPatrimonio * 100);
     private int TradingCount => tradingAccounts.Count;
     private decimal TradingMonthPnl => tradingAccounts.Sum(a => a.MonthPnl);
-    private double TradingMonthPct => TradingTotal == 0 ? 0 : (double)(TradingMonthPnl / (TradingTotal - TradingMonthPnl) * 100);
+    private double TradingMonthPct => TradingTotal == 0 ? 0
+        : (double)(TradingMonthPnl / Math.Max(TradingTotal - TradingMonthPnl, 1) * 100);
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
     {
         accounts = await Store.GetAccountsAsync();
         bankAccounts = accounts.Where(a => a.Type != AccountType.Trading).ToList();
         tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
     }
+
+    // ── Add account ───────────────────────────────────────────────────────
 
     private void OpenAddAccount() { newAccount = new(); showAddModal = true; }
     private void CloseModal() => showAddModal = false;
@@ -181,9 +343,45 @@
         if (string.IsNullOrWhiteSpace(newAccount.Name)) return;
         newAccount.EquityHistory = [newAccount.Balance];
         await Store.AddAccountAsync(newAccount);
-        accounts = await Store.GetAccountsAsync();
-        bankAccounts = accounts.Where(a => a.Type != AccountType.Trading).ToList();
-        tradingAccounts = accounts.Where(a => a.Type == AccountType.Trading).ToList();
+        await Reload();
         CloseModal();
+    }
+
+    // ── Account detail / operation ────────────────────────────────────────
+
+    private void OpenAccountDetail(Account acc)
+    {
+        detailAccount = acc;
+        opSign = 1;
+        opAmount = 0;
+        opDescription = "";
+    }
+
+    private void CloseDetail() => detailAccount = null;
+
+    private async Task ApplyOperation()
+    {
+        if (detailAccount is null || opAmount <= 0) return;
+
+        var delta = opSign * opAmount;
+        detailAccount.Balance += delta;
+        detailAccount.MonthPnl += delta;
+        detailAccount.EquityHistory.Add(detailAccount.Balance);
+        detailAccount.Operations.Add(new AccountOperation
+        {
+            Amount = delta,
+            Description = string.IsNullOrWhiteSpace(opDescription)
+                ? (delta >= 0 ? "Ingreso" : "Gasto")
+                : opDescription,
+            Date = DateTime.Today
+        });
+
+        await Store.UpdateAccountAsync(detailAccount);
+        await Reload();
+
+        // Keep modal open but reset form
+        detailAccount = accounts.First(a => a.Id == detailAccount.Id);
+        opAmount = 0;
+        opDescription = "";
     }
 }

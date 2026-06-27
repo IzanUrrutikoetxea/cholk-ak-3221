@@ -1,28 +1,31 @@
+@using System.Globalization
+
 @code {
     [Parameter] public List<decimal> Values { get; set; } = new();
     [Parameter] public int Width { get; set; } = 280;
     [Parameter] public int Height { get; set; } = 44;
     [Parameter] public string Color { get; set; } = "var(--accent)";
-    [Parameter] public float StrokeWidth { get; set; } = 1.8f;
+    [Parameter] public float StrokeWidth { get; set; } = 1;
 
     private string ComputePoints()
     {
         if (Values.Count < 2) return "";
         var min = Values.Min();
         var max = Values.Max();
-        var range = max == min ? 1 : max - min;
-        var pad = 4;
-        var points = Values.Select((v, i) =>
+        var range = max == min ? 1m : max - min;
+        const int pad = 4;
+        var ic = CultureInfo.InvariantCulture;
+        return string.Join(" ", Values.Select((v, i) =>
         {
             double x = (double)i / (Values.Count - 1) * Width;
             double y = (Height - pad) - (double)((v - min) / range) * (Height - pad * 2);
-            return $"{x:F1},{y:F1}";
-        });
-        return string.Join(" ", points);
+            return $"{x.ToString("F1", ic)},{y.ToString("F1", ic)}";
+        }));
     }
 }
 
-<svg viewBox="0 0 @Width @Height" preserveAspectRatio="none" style="width:100%; height:@(Height)px; display:block;">
-    <polyline points="@ComputePoints()" fill="none" stroke="@Color" stroke-width="@StrokeWidth"
-              stroke-linejoin="round" stroke-linecap="round" />
+<svg viewBox="0 0 @Width @Height" preserveAspectRatio="none"
+     style="width:100%; height:@(Height)px; display:block; overflow:visible;">
+    <polyline points="@ComputePoints()" fill="none" stroke="@Color"
+              stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />
 </svg>

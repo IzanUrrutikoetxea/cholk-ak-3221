@@ -14,4 +14,13 @@ public class Account
     public decimal Balance { get; set; }
     public decimal MonthPnl { get; set; }
     public List<decimal> EquityHistory { get; set; } = new();
+    public List<AccountOperation> Operations { get; set; } = new();
+}
+
+public class AccountOperation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public decimal Amount { get; set; }          // positive = income, negative = expense
+    public string Description { get; set; } = "";
+    public DateTime Date { get; set; } = DateTime.Today;
 }

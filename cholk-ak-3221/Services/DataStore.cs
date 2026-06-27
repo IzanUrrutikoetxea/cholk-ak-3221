@@ -199,24 +199,4 @@ public class DataStore(ILocalStorageService storage)
                 OpenedAt = base_date.AddDays(23), Status = TradeStatus.Open },
         ];
     }
-
-    private static List<Strategy> SeedStrategies() =>
-    [
-        new() { Name = "Breakout London", Description = "Rupturas en la apertura de Londres · H1",
-            TotalPnl = 2140, WinRate = 67, ProfitFactor = 2.3, TradeCount = 18,
-            Status = StrategyStatus.Profitable,
-            EquityHistory = [0, 180, 340, 290, 520, 680, 950, 1200, 1050, 1380, 1560, 1820, 2000, 1900, 2140] },
-        new() { Name = "Trend H4", Description = "Seguimiento de tendencia en H4 · pullback EMA",
-            TotalPnl = 1380, WinRate = 57, ProfitFactor = 1.8, TradeCount = 14,
-            Status = StrategyStatus.Profitable,
-            EquityHistory = [0, 120, 80, 240, 200, 380, 350, 520, 480, 680, 750, 980, 1100, 1250, 1380] },
-        new() { Name = "Pullback Asia", Description = "Retrocesos en sesión asiática · rango",
-            TotalPnl = 720, WinRate = 60, ProfitFactor = 1.6, TradeCount = 9,
-            Status = StrategyStatus.Profitable,
-            EquityHistory = [0, 90, 60, 180, 150, 300, 420, 380, 560, 720] },
-        new() { Name = "Reversal NY", Description = "Reversiones en sesión de Nueva York",
-            TotalPnl = -420, WinRate = 48, ProfitFactor = 0.8, TradeCount = 6,
-            Status = StrategyStatus.UnderReview,
-            EquityHistory = [0, 80, 60, -40, 30, -120, -420] },
-    ];
 }
