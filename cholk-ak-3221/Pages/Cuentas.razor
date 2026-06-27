@@ -86,7 +86,7 @@
     <div class="grid-3">
         @foreach (var acc in tradingAccounts)
         {
-            <div class="card">
+            <div class="card" style="cursor:pointer;" @onclick="() => OpenEditAccount(acc)">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
                     <div class="account-logo" style="width:38px; height:38px; font-size:13px;">@acc.Abbreviation</div>
                     <div style="flex:1;">
@@ -248,7 +248,11 @@
                 </div>
             }
 
-            <div style="margin-top:20px; text-align:right;">
+            <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+                <button @onclick="() => { CloseDetail(); OpenEditAccount(detailAccount!); }"
+                        style="background:none; border:none; color:var(--text-faint); font-size:13px; cursor:pointer; font-family:var(--font-mono);">
+                    ✏ Editar cuenta
+                </button>
                 <button class="btn-secondary" @onclick="CloseDetail">Cerrar</button>
             </div>
         </div>
@@ -297,6 +301,73 @@
     </div>
 }
 
+<!-- Edit Account Modal -->
+@if (showEditModal)
+{
+    <div class="modal-overlay" @onclick="CloseEditModal">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-title">Editar cuenta</div>
+            <div class="form-group">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" @bind="editAccount.Name" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Abreviatura</label>
+                    <input class="form-control" @bind="editAccount.Abbreviation" maxlength="3" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-control" @bind="editAccount.Type">
+                        <option value="@AccountType.Bank">Banco</option>
+                        <option value="@AccountType.Trading">Trading</option>
+                        <option value="@AccountType.Cash">Efectivo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Descripción</label>
+                    <input class="form-control" @bind="editAccount.Subtitle" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Saldo (€)</label>
+                    <input class="form-control" type="number" @bind="editAccount.Balance" />
+                </div>
+            </div>
+            @if (editAccount.Type == AccountType.Trading)
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Estado</label>
+                        <select class="form-control" @bind="editAccount.Status">
+                            <option value="@AccountStatus.Active">Activa</option>
+                            <option value="@AccountStatus.Challenge">Reto</option>
+                            <option value="@AccountStatus.Inactive">Inactiva</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">P&L mes (€)</label>
+                        <input class="form-control" type="number" @bind="editAccount.MonthPnl" />
+                    </div>
+                </div>
+            }
+            <div class="form-actions" style="justify-content:space-between;">
+                <button @onclick="DeleteAccountAsync"
+                        style="background:none; border:1px solid var(--red); color:var(--red);
+                               border-radius:var(--radius-md); padding:8px 16px; font-size:13px;
+                               cursor:pointer; font-family:var(--font-mono);">
+                    Borrar cuenta
+                </button>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-secondary" @onclick="CloseEditModal">Cancelar</button>
+                    <button class="btn-primary" @onclick="SaveEditAccount">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Account> accounts = new();
     private List<Account> bankAccounts = new();
@@ -337,6 +408,41 @@
 
     private void OpenAddAccount() { newAccount = new(); showAddModal = true; }
     private void CloseModal() => showAddModal = false;
+
+    // ── Edit / Delete account ─────────────────────────────────────────────
+
+    private bool showEditModal = false;
+    private Account editAccount = new();
+
+    private void OpenEditAccount(Account acc)
+    {
+        editAccount = new Account
+        {
+            Id = acc.Id, Name = acc.Name, Abbreviation = acc.Abbreviation,
+            Subtitle = acc.Subtitle, Type = acc.Type, Status = acc.Status,
+            Balance = acc.Balance, MonthPnl = acc.MonthPnl,
+            EquityHistory = acc.EquityHistory.ToList(),
+            Operations = acc.Operations.ToList()
+        };
+        showEditModal = true;
+    }
+
+    private void CloseEditModal() => showEditModal = false;
+
+    private async Task SaveEditAccount()
+    {
+        if (string.IsNullOrWhiteSpace(editAccount.Name)) return;
+        await Store.UpdateAccountAsync(editAccount);
+        await Reload();
+        CloseEditModal();
+    }
+
+    private async Task DeleteAccountAsync()
+    {
+        await Store.DeleteAccountAsync(editAccount.Id);
+        await Reload();
+        CloseEditModal();
+    }
 
     private async Task SaveAccount()
     {
