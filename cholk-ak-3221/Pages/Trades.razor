@@ -395,6 +395,7 @@
     private async Task SaveEditTrade()
     {
         if (editTrade is null || string.IsNullOrWhiteSpace(editTrade.Symbol)) return;
+        var original = allTrades.First(t => t.Id == editTrade.Id);
         if (editExitPriceInput.HasValue)
         {
             editTrade.ExitPrice = editExitPriceInput;
@@ -408,6 +409,10 @@
             editTrade.Status = TradeStatus.Open;
         }
         await Store.UpdateTradeAsync(editTrade);
+        // Adjust account balance by the difference in P&L
+        var pnlDelta = editTrade.Pnl - (original.Status == TradeStatus.Closed ? original.Pnl : 0);
+        if (pnlDelta != 0 && editTrade.Status == TradeStatus.Closed)
+            await ApplyPnlToAccount(editTrade.AccountName, pnlDelta);
         allTrades = await Store.GetTradesAsync();
         ApplyFilters();
         CloseEditModal();
@@ -431,9 +436,22 @@
             newTrade.Status = TradeStatus.Closed;
         }
         await Store.AddTradeAsync(newTrade);
+        if (newTrade.Status == TradeStatus.Closed && newTrade.Pnl != 0)
+            await ApplyPnlToAccount(newTrade.AccountName, newTrade.Pnl);
         allTrades = await Store.GetTradesAsync();
         accountNames = allTrades.Select(t => t.AccountName).Distinct().OrderBy(x => x).ToList();
         ApplyFilters();
         CloseModal();
+    }
+
+    private async Task ApplyPnlToAccount(string accountName, decimal pnl)
+    {
+        var accounts = await Store.GetAccountsAsync();
+        var acc = accounts.FirstOrDefault(a => a.Name == accountName);
+        if (acc is null) return;
+        acc.Balance += pnl;
+        acc.MonthPnl += pnl;
+        acc.EquityHistory.Add(acc.Balance);
+        await Store.UpdateAccountAsync(acc);
     }
 }
